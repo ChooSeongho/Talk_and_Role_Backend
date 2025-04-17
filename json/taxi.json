@@ -1,0 +1,23 @@
+{
+  "user_info": {
+    "nationality": "South Korea",
+    "age": 25,
+    "occupation": "Student",
+    "native_language": "Korean"
+  },
+  "learning_info": {
+    "target_country": "Canada",
+    "target_language": "English"
+  },
+  "learning_mode": "Easy",
+  "roleplay_setting": {
+    "location": "Airport",
+    "NPC_role_and_quest": {
+      "Taxi_driver": {
+        "quest_list": ["Tell the Taxi Driver Your Destination"]
+      }
+    },
+    "order_of_NPC_role": ["Taxi_driver"],
+    "user_role": "Passenger"
+  }
+}

@@ -10,6 +10,7 @@ from openai import AzureOpenAI
 from prompt import system_prompt
 import json
 
+
 app = FastAPI()
 load_dotenv()
 
@@ -119,7 +120,7 @@ async def test_evaluate_text(request: TextEvaluationRequest, pronunciation_score
         # print(user_history)
         # print(assistant_histroy)
         # evaluation_text = f"{request.text} {pronunciation_score_info}"
-        print("req:",request.text)
+        # print("req:",request.text)
         if request.text[:1] == "{":
             history = []
             history.append(sys_prompt)
@@ -131,20 +132,65 @@ async def test_evaluate_text(request: TextEvaluationRequest, pronunciation_score
         next_npc_conversation = ""
 
         history.append({"role":"assistant", "content":[{"type":"text","text":completion.to_json()}]})
-        print(completion)
-        _next = json.loads(completion.choices[0].message.content)
+        print("Res : ", completion)
+        _res_content = completion.choices[0].message.content
+        # _next = json.loads(completion.choices[0].message.content)
+        
+        _res_content_split = str(_res_content).split("}\n\n{")
 
+        if(len(_res_content_split) == 1 and len(str(_res_content).split("}\r\n\r\n{")) > 1):
+           _res_content_split = str(_res_content).split("}\r\n\r\n{")
+
+        if(len(_res_content_split) == 1 and len(str(_res_content).split("}{")) > 1):
+             print("}{")
+             _res_content_split = str(_res_content).split("}{")
+             
+        if(len(_res_content_split) == 1 and len(str(_res_content).split("}\r\n{")) > 1):
+             print("\r\n")
+             _res_content_split = str(_res_content).split("}\r\n{")
+        if(len(_res_content_split) == 1 and len(str(_res_content).split("} \n\n{")) > 1):
+             print("\r\n")
+             _res_content_split = str(_res_content).split("} \n\n{")
+        
+        print(_res_content_split)
+        print("_res_content")
+        print(_res_content)
+        if(len(_res_content_split) > 1):
+            _res_content_split[0] += "}"
+            _res_content_split[1] = "{" + _res_content_split[1]
+            print("res_split_0 : ", _res_content_split[0])
+            print("res_split_1 : ", _res_content_split[1])
+            _next = json.loads(_res_content_split[0])
+        else:
+            _next = json.loads(_res_content)
+        # _next = json.loads(str(_res_content).split("\n\n")[0])
+        
         # print(_next)
         print(type(_next))
         if "main_response" in _next:
-            if "conversation" in _next.get("main_response"):
-                print("next_npc_ :", _next["main_response"]["conversation"][-1]["npc"])
-                next_npc_conversation = _next["main_response"]["conversation"][-1]["npc"]
-                tts_file_name = await convert_text_to_speech(next_npc_conversation)
-                if pronunciation_score != None:
-                    conversation_entry = _next["main_response"]["conversation"][-2]
-                    conversation_entry["pronunciation_score"] = pronunciation_score
-                    conversation_entry["fluency_score"] = fluency_score
+            if "quest_progress" in _next.get("main_response"):
+                if "quest_status" in _next.get("main_response").get("quest_progress"):
+                    print(_next["main_response"]["quest_progress"]["quest_status"])
+                    if _next["main_response"]["quest_progress"]["quest_status"] != "Completed":
+                        if "conversation" in _next.get("main_response"):
+                            print("next_npc_ :", _next["main_response"]["conversation"][-1]["npc"])
+                            next_npc_conversation = _next["main_response"]["conversation"][-1]["npc"]
+                            # tts_file_name = await convert_text_to_speech(next_npc_conversation)
+                            if pronunciation_score != None:
+                                conversation_entry = _next["main_response"]["conversation"][-2]
+                                conversation_entry["pronunciation_score"] = pronunciation_score
+                                conversation_entry["fluency_score"] = fluency_score
+                                if(len(_next["main_response"]["conversation"]) > 1):
+                                    _next["main_response"]["conversation"][-2] = conversation_entry
+                                else:
+                                    _next["main_response"]["conversation"][-1] = conversation_entry
+                    else:
+                        print("completed_split")
+                        print(_res_content_split[1])
+                        _summary = json.loads(_res_content_split[1])
+                        _next["main_response"]["completed_quest_summary"] = _summary["completed_quest_summary"]
+                        print(_next)
+                        print("Completed")
 
         completion.choices[0].message.content = json.dumps(_next, ensure_ascii=False)
 
@@ -152,7 +198,11 @@ async def test_evaluate_text(request: TextEvaluationRequest, pronunciation_score
             "evaluation": completion
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        print("Error: ", str(e))
+        print(traceback.format_exc())  # 에러와 스택 트레이스를 출력raise HTTPException(status_code=500, detail=str(e))
+    
 
 
 if __name__ == "__main__":
